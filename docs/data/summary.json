@@ -8,7 +8,6 @@
   "raw_unit_bearing_permit_rows": 9007,
   "duplicate_positive_units_removed": 146,
   "spatial_fallback_positive_units": 691,
-  "unassigned_positive_units": 28,
   "high_rent_low_response_tracts": 121,
   "lower_confidence_tracts": 91
 }

@@ -475,9 +475,7 @@ def prepare_map_frame(
         "citywide_all_permits": float(metric["all_permits"].sum()),
         "citywide_duplicate_positive_units_removed": float(metric["duplicate_positive_units_removed"].sum()),
         "citywide_spatial_fallback_positive_units": float(metric["spatial_fallback_positive_units"].sum()),
-        "citywide_unassigned_positive_units": float(rollup.summary["unassigned_positive_units"]),
         "recovered_project_count": float(len(point_layers["recovered_projects"])),
-        "unassigned_project_count": float(len(point_layers["unassigned_projects"])),
         "high_rent_low_response_tracts": float(
             (
                 (metric["analysis_confidence"] == "Standard")
@@ -546,27 +544,6 @@ def build_deck(gdf: gpd.GeoDataFrame, point_layers: dict[str, pd.DataFrame]) -> 
             )
         )
 
-    unassigned_points = point_layers["unassigned_projects"]
-    if not unassigned_points.empty:
-        layers.append(
-            pdk.Layer(
-                "ScatterplotLayer",
-                unassigned_points,
-                pickable=True,
-                opacity=0.95,
-                stroked=True,
-                filled=True,
-                get_position="[lon, lat]",
-                get_radius="radius_m",
-                radius_units="meters",
-                radius_min_pixels=4,
-                radius_max_pixels=26,
-                get_fill_color=[196, 64, 64, 170],
-                get_line_color=[98, 18, 24, 235],
-                line_width_min_pixels=1.4,
-            )
-        )
-
     tooltip = {
         "html": "{tooltip_html}",
         "style": {
@@ -598,9 +575,7 @@ def build_overlay_html(stats: dict[str, float | str]) -> str:
     all_permits = format_int(float(stats["citywide_all_permits"]))
     duplicate_units_removed = format_int(float(stats["citywide_duplicate_positive_units_removed"]))
     spatial_units = format_int(float(stats["citywide_spatial_fallback_positive_units"]))
-    unassigned_units = format_int(float(stats["citywide_unassigned_positive_units"]))
     recovered_projects = format_int(float(stats["recovered_project_count"]))
-    unassigned_projects = format_int(float(stats["unassigned_project_count"]))
     high_rent_low_response = format_int(float(stats["high_rent_low_response_tracts"]))
     lower_confidence = format_int(float(stats["lower_confidence_tracts"]))
     supply_cap = f"{float(stats['supply_cap']):,.0f}"
@@ -671,13 +646,12 @@ def build_overlay_html(stats: dict[str, float | str]) -> str:
   <h1>LA Observed Rents And Supply v5</h1>
   <p>{html.escape(start_label)} to {html.escape(end_label)} permits with 2023 ACS housing context</p>
   <p style="margin-top: 10px;">Height shows <b>reconciled positive units per 1,000 homes</b>. Color shows <b>observed median gross rent</b>. This is a direct rent read, with vacancy and rent burden left in the tooltip as supporting context rather than blended into the color.</p>
-  <p style="margin-top: 10px;"><b>Positive units:</b> {html.escape(positive_units)}<br/><b>Net units:</b> {html.escape(net_units)}<br/><b>Housing projects:</b> {html.escape(housing_projects)}<br/><b>Raw unit-bearing permit rows:</b> {html.escape(raw_unit_rows)}<br/><b>Other permits:</b> {html.escape(other_permits)}<br/><b>All permit rows:</b> {html.escape(all_permits)}<br/><b>Recovered projects:</b> {html.escape(recovered_projects)}<br/><b>Spatially reassigned units:</b> {html.escape(spatial_units)}<br/><b>Duplicate units removed:</b> {html.escape(duplicate_units_removed)}<br/><b>Unassigned projects:</b> {html.escape(unassigned_projects)}<br/><b>Still unassigned units:</b> {html.escape(unassigned_units)}<br/><b>High-rent / limited-supply tracts:</b> {html.escape(high_rent_low_response)}<br/><b>Lower-confidence tracts:</b> {html.escape(lower_confidence)}</p>
+  <p style="margin-top: 10px;"><b>Positive units:</b> {html.escape(positive_units)}<br/><b>Net units:</b> {html.escape(net_units)}<br/><b>Housing projects:</b> {html.escape(housing_projects)}<br/><b>Raw unit-bearing permit rows:</b> {html.escape(raw_unit_rows)}<br/><b>Other permits:</b> {html.escape(other_permits)}<br/><b>All permit rows:</b> {html.escape(all_permits)}<br/><b>Recovered projects:</b> {html.escape(recovered_projects)}<br/><b>Spatially reassigned units:</b> {html.escape(spatial_units)}<br/><b>Duplicate units removed:</b> {html.escape(duplicate_units_removed)}<br/><b>High-rent / limited-supply tracts:</b> {html.escape(high_rent_low_response)}<br/><b>Lower-confidence tracts:</b> {html.escape(lower_confidence)}</p>
 </div>
 <div class="map-card map-legend">
   <div class="legend-row"><b>Extrusion</b>: capped near {html.escape(supply_cap)} positive units per 1,000 homes</div>
   <div class="legend-row"><b>Color</b>: observed median gross rent</div>
   <div class="legend-row"><span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:#eba923;border:1px solid #7a4e08;margin-right:6px;"></span>Recovered projects reassigned by lat/lon</div>
-  <div class="legend-row"><span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:#c44040;border:1px solid #621218;margin-right:6px;"></span>Still-unassigned positive-unit projects</div>
   <div class="legend-bar"></div>
   <div class="legend-scale">
     <span>{html.escape(rent_low)}</span>
@@ -723,8 +697,5 @@ def main() -> None:
     print(f"All permits: {int(round(float(stats['citywide_all_permits']))):,}")
     print(f"Spatially reassigned units: {int(round(float(stats['citywide_spatial_fallback_positive_units']))):,}")
     print(f"Duplicate units removed: {int(round(float(stats['citywide_duplicate_positive_units_removed']))):,}")
-    print(f"Still unassigned to 2023 tracts: {int(round(float(stats['citywide_unassigned_positive_units']))):,}")
-
-
 if __name__ == "__main__":
     main()

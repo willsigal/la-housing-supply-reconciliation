@@ -49,9 +49,7 @@ def build_index_html(
     raw_unit_rows = format_int(float(permits_stats["citywide_raw_unit_bearing_permit_rows"]))
     duplicate_units_removed = format_int(float(permits_stats["citywide_duplicate_positive_units_removed"]))
     spatial_units = format_int(float(permits_stats["citywide_spatial_fallback_positive_units"]))
-    unassigned_units = format_int(float(permits_stats["citywide_unassigned_positive_units"]))
     recovered_projects = format_int(float(permits_stats["recovered_project_count"]))
-    unassigned_projects = format_int(float(permits_stats["unassigned_project_count"]))
     high_rent_low_response = format_int(float(balance_stats["high_rent_low_response_tracts"]))
     lower_confidence = format_int(float(balance_stats["lower_confidence_tracts"]))
 
@@ -91,10 +89,10 @@ def build_index_html(
           <strong class="metric-value">{spatial_units}</strong>
           <p>{recovered_projects} anonymized projects reassigned by geospatial fallback because the published tract code did not match the current tract layer.</p>
         </article>
-        <article class="metric-card danger-card">
-          <span class="metric-label">Still Unassigned</span>
-          <strong class="metric-value">{unassigned_units}</strong>
-          <p>{unassigned_projects} anonymized projects still fall outside the current city tract layer and are marked separately on the maps.</p>
+        <article class="metric-card">
+          <span class="metric-label">Duplicate Units Removed</span>
+          <strong class="metric-value">{duplicate_units_removed}</strong>
+          <p>Positive-unit duplication removed from supplemental and revision permit families before the tract rollup.</p>
         </article>
       </section>
 
@@ -111,7 +109,7 @@ def build_index_html(
           </article>
           <article class="note-card">
             <h2>Privacy-safe publishing required stripping address-level detail.</h2>
-            <p>The public site excludes raw addresses, parcel references, and permit numbers. Recovered and unassigned projects are shown with anonymized IDs only.</p>
+            <p>The public site excludes raw addresses, parcel references, and permit numbers. Recovered projects are shown with anonymized IDs only.</p>
           </article>
           <article class="note-card">
             <h2>Rent colors are simpler and easier to defend.</h2>
@@ -138,7 +136,7 @@ def build_index_html(
         <div class="map-shell">
           <div class="map-copy">
             <h2>Reconciled permitted housing units by tract</h2>
-            <p>Yellow markers show anonymized recovered projects reassigned by geospatial fallback. Red markers show the few positive-unit projects still outside the current tract layer.</p>
+            <p>Yellow markers show anonymized recovered projects reassigned by geospatial fallback.</p>
             <p class="micro-note">The raw unit-bearing permit row count is {raw_unit_rows}, but the public map treats those as underlying records, not final project counts.</p>
             <a class="map-link" href="maps/la_permits_units_los_angeles.html" target="_blank" rel="noreferrer">Open full map</a>
           </div>
@@ -479,7 +477,6 @@ def main() -> None:
         "raw_unit_bearing_permit_rows": int(round(float(permits_stats["citywide_raw_unit_bearing_permit_rows"]))),
         "duplicate_positive_units_removed": int(round(float(permits_stats["citywide_duplicate_positive_units_removed"]))),
         "spatial_fallback_positive_units": int(round(float(permits_stats["citywide_spatial_fallback_positive_units"]))),
-        "unassigned_positive_units": int(round(float(permits_stats["citywide_unassigned_positive_units"]))),
         "high_rent_low_response_tracts": int(round(float(balance_stats["high_rent_low_response_tracts"]))),
         "lower_confidence_tracts": int(round(float(balance_stats["lower_confidence_tracts"]))),
     }
