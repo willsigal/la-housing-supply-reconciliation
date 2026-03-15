@@ -3,6 +3,9 @@ from __future__ import annotations
 from datetime import date, datetime
 from pathlib import Path
 
+from la_density_income_map import export_map as export_density_map
+from la_density_income_map import prepare_map_frame as prepare_density_map_frame
+from la_density_income_map import build_deck as build_density_deck
 from la_permits_units_map import export_map as export_permits_map
 from la_permits_units_map import prepare_map_frame as prepare_permits_map_frame
 from la_permits_units_map import build_deck as build_permits_deck
@@ -17,6 +20,8 @@ MAPS_DIR = DOCS_DIR / "maps"
 DATA_DIR = DOCS_DIR / "data"
 START_DATE = date(2025, 3, 14)
 END_DATE = date(2026, 3, 14)
+DENSITY_YEAR = 2023
+DENSITY_REGION = "city"
 
 
 def write_text(path: Path, content: str) -> None:
@@ -28,10 +33,17 @@ def format_int(value: float) -> str:
     return f"{int(round(float(value))):,}"
 
 
-def build_index_html(permits_stats: dict[str, float | str], balance_stats: dict[str, float | str]) -> str:
+def build_index_html(
+    density_stats: dict[str, float | str],
+    permits_stats: dict[str, float | str],
+    balance_stats: dict[str, float | str],
+) -> str:
     start_label = datetime.strptime(str(permits_stats["start_date"]), "%Y-%m-%d").strftime("%b %d, %Y")
     end_label = datetime.strptime(str(permits_stats["end_date"]), "%Y-%m-%d").strftime("%b %d, %Y")
 
+    density_cap = format_int(float(density_stats["density_cap"] * 2.58999))
+    income_low = format_int(float(density_stats["income_low"]))
+    income_high = format_int(float(density_stats["income_high"]))
     positive_units = format_int(float(permits_stats["citywide_positive_units"]))
     housing_projects = format_int(float(permits_stats["citywide_housing_projects"]))
     raw_unit_rows = format_int(float(permits_stats["citywide_raw_unit_bearing_permit_rows"]))
@@ -109,7 +121,20 @@ def build_index_html(permits_stats: dict[str, float | str], balance_stats: dict[
       </section>
 
       <section class="map-section">
-        <div class="section-band">MAP 1 | RECONCILED SUPPLY</div>
+        <div class="section-band">MAP 1 | DENSITY AND INCOME</div>
+        <div class="map-shell">
+          <div class="map-copy">
+            <h2>Population density and household income by tract</h2>
+            <p>Height shows ACS population density. Color shows ACS median household income, with neighborhood anchors in the tooltip for orientation.</p>
+            <p class="micro-note">This uses 2023 ACS tract estimates for Los Angeles city. Heights are capped near {density_cap} people per sq mi for readability, and the displayed income scale runs roughly from ${income_low} to ${income_high}.</p>
+            <a class="map-link" href="maps/la_density_income_los_angeles.html" target="_blank" rel="noreferrer">Open full map</a>
+          </div>
+          <iframe title="Los Angeles density and income map" src="maps/la_density_income_los_angeles.html" loading="lazy"></iframe>
+        </div>
+      </section>
+
+      <section class="map-section">
+        <div class="section-band">MAP 2 | RECONCILED SUPPLY</div>
         <div class="map-shell">
           <div class="map-copy">
             <h2>Reconciled permitted housing units by tract</h2>
@@ -122,7 +147,7 @@ def build_index_html(permits_stats: dict[str, float | str], balance_stats: dict[
       </section>
 
       <section class="map-section">
-        <div class="section-band">MAP 2 | PRESSURE-RESPONSE CONTEXT</div>
+        <div class="section-band">MAP 3 | PRESSURE-RESPONSE CONTEXT</div>
         <div class="map-shell">
           <div class="map-copy">
             <h2>Observed market pressure and recent supply response</h2>
@@ -421,6 +446,17 @@ def main() -> None:
     MAPS_DIR.mkdir(parents=True, exist_ok=True)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
+    density_frame, density_stats = prepare_density_map_frame(DENSITY_YEAR, DENSITY_REGION)
+    density_deck = build_density_deck(density_frame, DENSITY_YEAR, DENSITY_REGION)
+    export_density_map(
+        density_deck,
+        MAPS_DIR / "la_density_income_los_angeles.html",
+        DENSITY_YEAR,
+        DENSITY_REGION,
+        density_stats,
+        False,
+    )
+
     permits_frame, permits_stats, permits_points = prepare_permits_map_frame(START_DATE, END_DATE)
     permits_deck = build_permits_deck(permits_frame, permits_points)
     export_permits_map(permits_deck, MAPS_DIR / "la_permits_units_los_angeles.html", permits_stats, False)
@@ -429,11 +465,13 @@ def main() -> None:
     balance_deck = build_balance_deck(balance_frame, balance_points)
     export_balance_map(balance_deck, MAPS_DIR / "la_supply_demand_balance_los_angeles.html", balance_stats, False)
 
-    write_text(DOCS_DIR / "index.html", build_index_html(permits_stats, balance_stats))
+    write_text(DOCS_DIR / "index.html", build_index_html(density_stats, permits_stats, balance_stats))
     write_text(DOCS_DIR / "assets" / "site.css", build_site_css())
     write_text(DOCS_DIR / ".nojekyll", "")
 
     summary_json = {
+        "density_year": DENSITY_YEAR,
+        "density_region": DENSITY_REGION,
         "start_date": permits_stats["start_date"],
         "end_date": permits_stats["end_date"],
         "positive_units": int(round(float(permits_stats["citywide_positive_units"]))),
