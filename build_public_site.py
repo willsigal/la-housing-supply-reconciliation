@@ -52,7 +52,7 @@ def build_index_html(
     unassigned_units = format_int(float(permits_stats["citywide_unassigned_positive_units"]))
     recovered_projects = format_int(float(permits_stats["recovered_project_count"]))
     unassigned_projects = format_int(float(permits_stats["unassigned_project_count"]))
-    high_pressure_low_response = format_int(float(balance_stats["high_pressure_low_response_tracts"]))
+    high_rent_low_response = format_int(float(balance_stats["high_rent_low_response_tracts"]))
     lower_confidence = format_int(float(balance_stats["lower_confidence_tracts"]))
 
     return f"""<!DOCTYPE html>
@@ -70,7 +70,7 @@ def build_index_html(
       <div class="header-inner">
         <p class="eyebrow">LOS ANGELES HOUSING PERMITS | PUBLIC SITE</p>
         <h1>Housing supply appears low because the permit dataset needs tract repair and family-level cleanup, not because a large block of units is missing.</h1>
-        <p class="lede">This site reconciles LADBS permit rows issued between {start_label} and {end_label} into a tract-level housing supply view, then pairs that supply signal with ACS market context. The second map is intentionally framed as descriptive pressure-response context rather than a definitive shortage score. Address-level and permit-number details are intentionally excluded from the published pages.</p>
+        <p class="lede">This site reconciles LADBS permit rows issued between {start_label} and {end_label} into a tract-level housing supply view, then pairs that supply signal with ACS market context. The third map now uses observed median gross rent directly, rather than a composite demand score. Address-level and permit-number details are intentionally excluded from the published pages.</p>
       </div>
     </header>
 
@@ -107,15 +107,15 @@ def build_index_html(
           </article>
           <article class="note-card">
             <h2>The supply map and context map now use the same repaired project rollup.</h2>
-            <p>That keeps the two views consistent: the supply map shows where units were permitted, while the context map places that reconciled supply beside rent burden, rent level, and vacancy pressure.</p>
+            <p>That keeps the two views consistent: the supply map shows where units were permitted, while the rent map places that reconciled supply beside an observed rent signal and leaves vacancy and burden as secondary context.</p>
           </article>
           <article class="note-card">
             <h2>Privacy-safe publishing required stripping address-level detail.</h2>
             <p>The public site excludes raw addresses, parcel references, and permit numbers. Recovered and unassigned projects are shown with anonymized IDs only.</p>
           </article>
           <article class="note-card">
-            <h2>Pressure-response colors are relative and confidence-rated.</h2>
-            <p>{high_pressure_low_response} tracts currently fall in the high-pressure / limited-response class, while {lower_confidence} tracts are muted because their ACS inputs are thin or incomplete.</p>
+            <h2>Rent colors are simpler and easier to defend.</h2>
+            <p>{high_rent_low_response} tracts currently fall in the high-rent / limited-supply group, while {lower_confidence} tracts are muted because their median-rent read is thin or incomplete.</p>
           </article>
         </div>
       </section>
@@ -147,15 +147,15 @@ def build_index_html(
       </section>
 
       <section class="map-section">
-        <div class="section-band">MAP 3 | PRESSURE-RESPONSE CONTEXT</div>
+        <div class="section-band">MAP 3 | OBSERVED RENTS AND SUPPLY</div>
         <div class="map-shell">
           <div class="map-copy">
-            <h2>Observed market pressure and recent supply response</h2>
-            <p>Height shows reconciled positive units per 1,000 homes. Color places tracts in a 3x3 relative class from observed market pressure and recent supply response, with gray reserved for lower-confidence reads.</p>
-            <p class="micro-note">Inputs combine reconciled LADBS permits with 2023 ACS housing units, vacancy, rent burden, and gross rent. These colors are descriptive percentile classes within Los Angeles city tracts, not modeled shortage estimates.</p>
+            <h2>Observed median rents and recent supply</h2>
+            <p>Height shows reconciled positive units per 1,000 homes. Color shows observed median gross rent, with gray reserved for lower-confidence rent reads.</p>
+            <p class="micro-note">Inputs combine reconciled LADBS permits with 2023 ACS housing units and median gross rent. Vacancy and rent burden remain in the tooltip as supporting context rather than being blended into the color.</p>
             <a class="map-link" href="maps/la_supply_demand_balance_los_angeles.html" target="_blank" rel="noreferrer">Open full map</a>
           </div>
-          <iframe title="Los Angeles supply-demand context map" src="maps/la_supply_demand_balance_los_angeles.html" loading="lazy"></iframe>
+          <iframe title="Los Angeles observed rents and supply map" src="maps/la_supply_demand_balance_los_angeles.html" loading="lazy"></iframe>
         </div>
       </section>
 
@@ -480,7 +480,7 @@ def main() -> None:
         "duplicate_positive_units_removed": int(round(float(permits_stats["citywide_duplicate_positive_units_removed"]))),
         "spatial_fallback_positive_units": int(round(float(permits_stats["citywide_spatial_fallback_positive_units"]))),
         "unassigned_positive_units": int(round(float(permits_stats["citywide_unassigned_positive_units"]))),
-        "high_pressure_low_response_tracts": int(round(float(balance_stats["high_pressure_low_response_tracts"]))),
+        "high_rent_low_response_tracts": int(round(float(balance_stats["high_rent_low_response_tracts"]))),
         "lower_confidence_tracts": int(round(float(balance_stats["lower_confidence_tracts"]))),
     }
     write_text(DOCS_DIR / "data" / "summary.json", __import__("json").dumps(summary_json, indent=2))

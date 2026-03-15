@@ -28,7 +28,7 @@ OUTPUT_DIR = BASE_DIR / "output"
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Render a Los Angeles supply-demand context map from LADBS permits and ACS housing indicators."
+        description="Render a Los Angeles rents-and-supply context map from LADBS permits and ACS housing indicators."
     )
     parser.add_argument(
         "--months",
@@ -210,9 +210,9 @@ def percentile_bucket(value: float) -> str:
 def confidence_label(
     renter_households: float,
     housing_units: float,
-    component_count: float,
+    median_gross_rent: float,
 ) -> str:
-    if component_count < 3:
+    if pd.isna(median_gross_rent):
         return "Lower confidence"
     if pd.isna(renter_households) or renter_households < 150:
         return "Lower confidence"
@@ -221,40 +221,60 @@ def confidence_label(
     return "Standard"
 
 
-def observed_class_label(pressure_bucket: str, response_bucket: str, confidence: str) -> str:
+def observed_context_label(rent_bucket: str, response_bucket: str, confidence: str) -> str:
     if confidence != "Standard":
-        return "Lower-confidence descriptive read"
+        return "Lower-confidence rent read"
 
     labels = {
-        ("High", "Low"): "High pressure / limited response",
-        ("High", "Moderate"): "High pressure / modest response",
-        ("High", "High"): "High pressure / active response",
-        ("Moderate", "Low"): "Moderate pressure / limited response",
-        ("Moderate", "Moderate"): "Moderate pressure / moderate response",
-        ("Moderate", "High"): "Moderate pressure / strong response",
-        ("Low", "Low"): "Lower pressure / limited response",
-        ("Low", "Moderate"): "Lower pressure / moderate response",
-        ("Low", "High"): "Lower pressure / strong response",
+        ("High", "Low"): "Higher observed rent / limited recent supply",
+        ("High", "Moderate"): "Higher observed rent / moderate recent supply",
+        ("High", "High"): "Higher observed rent / active recent supply",
+        ("Moderate", "Low"): "Mid-range observed rent / limited recent supply",
+        ("Moderate", "Moderate"): "Mid-range observed rent / moderate recent supply",
+        ("Moderate", "High"): "Mid-range observed rent / active recent supply",
+        ("Low", "Low"): "Lower observed rent / limited recent supply",
+        ("Low", "Moderate"): "Lower observed rent / moderate recent supply",
+        ("Low", "High"): "Lower observed rent / active recent supply",
     }
-    return labels.get((pressure_bucket, response_bucket), "Mixed / insufficient detail")
+    return labels.get((rent_bucket, response_bucket), "Mixed / insufficient detail")
 
 
-def bivariate_fill_color(pressure_bucket: str, response_bucket: str, confidence: str) -> list[int]:
+def rent_fill_color(value: float, low_value: float, high_value: float, confidence: str) -> list[int]:
     if confidence != "Standard":
         return [150, 153, 157, 110]
 
-    palette: dict[tuple[str, str], list[int]] = {
-        ("High", "Low"): [204, 122, 84, 210],
-        ("High", "Moderate"): [215, 171, 92, 210],
-        ("High", "High"): [196, 197, 145, 205],
-        ("Moderate", "Low"): [173, 148, 118, 205],
-        ("Moderate", "Moderate"): [157, 161, 155, 195],
-        ("Moderate", "High"): [132, 181, 174, 205],
-        ("Low", "Low"): [188, 177, 166, 190],
-        ("Low", "Moderate"): [164, 193, 187, 200],
-        ("Low", "High"): [95, 169, 171, 210],
-    }
-    return palette.get((pressure_bucket, response_bucket), [157, 161, 155, 180])
+    if pd.isna(value):
+        return [150, 153, 157, 110]
+
+    palette = [
+        (92, 115, 171),
+        (109, 160, 178),
+        (185, 184, 149),
+        (218, 173, 98),
+        (204, 122, 84),
+    ]
+
+    log_low = np.log1p(max(float(low_value), 0.0))
+    log_high = np.log1p(max(float(high_value), 0.0))
+    log_value = np.log1p(max(float(value), 0.0))
+
+    if log_high <= log_low:
+        base = palette[-1]
+        return [base[0], base[1], base[2], 210]
+
+    clamped = min(max(log_value, log_low), log_high)
+    scaled = (clamped - log_low) / (log_high - log_low)
+    position = scaled * (len(palette) - 1)
+    lower_index = int(position)
+    upper_index = min(lower_index + 1, len(palette) - 1)
+    blend = position - lower_index
+    lower = palette[lower_index]
+    upper = palette[upper_index]
+    rgb = [
+        round(lower[channel] + (upper[channel] - lower[channel]) * blend)
+        for channel in range(3)
+    ]
+    return [rgb[0], rgb[1], rgb[2], 210]
 
 
 def format_int(value: float) -> str:
@@ -330,18 +350,7 @@ def prepare_map_frame(
     metric["positive_units_per_1000_homes"] = pd.to_numeric(metric["positive_units_per_1000_homes"], errors="coerce")
     metric["net_units_per_1000_homes"] = pd.to_numeric(metric["net_units_per_1000_homes"], errors="coerce")
 
-    metric["rent_burden_percentile"] = clipped_percentile(metric["rent_burden_share"])
-    metric["rent_level_percentile"] = clipped_percentile(metric["median_gross_rent"], log_scale=True)
-    metric["vacancy_tightness_percentile"] = clipped_percentile(metric["vacancy_rate"], invert=True)
-    metric["pressure_component_count"] = metric[
-        ["rent_burden_percentile", "rent_level_percentile", "vacancy_tightness_percentile"]
-    ].notna().sum(axis=1)
-
-    metric["market_pressure_percentile"] = (
-        0.45 * metric["rent_burden_percentile"].fillna(50)
-        + 0.35 * metric["rent_level_percentile"].fillna(50)
-        + 0.20 * metric["vacancy_tightness_percentile"].fillna(50)
-    )
+    metric["rent_percentile"] = clipped_percentile(metric["median_gross_rent"], log_scale=True)
     metric["supply_response_percentile"] = clipped_percentile(metric["positive_units_per_1000_homes"], log_scale=True)
     metric["supply_response_percentile"] = metric["supply_response_percentile"].fillna(50)
 
@@ -349,15 +358,15 @@ def prepare_map_frame(
         lambda row: confidence_label(
             row["renter_households_computed"],
             row["housing_units"],
-            row["pressure_component_count"],
+            row["median_gross_rent"],
         ),
         axis=1,
     )
-    metric["market_pressure_bucket"] = metric["market_pressure_percentile"].apply(percentile_bucket)
+    metric["rent_bucket"] = metric["rent_percentile"].apply(percentile_bucket)
     metric["supply_response_bucket"] = metric["supply_response_percentile"].apply(percentile_bucket)
-    metric["observed_class"] = metric.apply(
-        lambda row: observed_class_label(
-            row["market_pressure_bucket"],
+    metric["observed_context"] = metric.apply(
+        lambda row: observed_context_label(
+            row["rent_bucket"],
             row["supply_response_bucket"],
             row["analysis_confidence"],
         ),
@@ -370,11 +379,21 @@ def prepare_map_frame(
     if pd.isna(supply_cap) or supply_cap <= 0:
         supply_cap = 1.0
 
+    rent_low = float(metric["median_gross_rent"].dropna().quantile(0.05))
+    rent_high = float(metric["median_gross_rent"].dropna().quantile(0.95))
+    if pd.isna(rent_low) or rent_low < 0:
+        rent_low = 0.0
+    if pd.isna(rent_high) or rent_high <= rent_low:
+        rent_high = max(rent_low + 1.0, float(metric["median_gross_rent"].dropna().max()))
+    if pd.isna(rent_high) or rent_high <= 0:
+        rent_high = max(rent_low + 1.0, 1.0)
+
     metric["height_m"] = metric["positive_units_per_1000_homes"].clip(lower=0, upper=supply_cap).fillna(0) * 58
     metric["fill_color"] = metric.apply(
-        lambda row: bivariate_fill_color(
-            row["market_pressure_bucket"],
-            row["supply_response_bucket"],
+        lambda row: rent_fill_color(
+            row["median_gross_rent"],
+            rent_low,
+            rent_high,
             row["analysis_confidence"],
         ),
         axis=1,
@@ -394,7 +413,8 @@ def prepare_map_frame(
         lambda value: "No data" if pd.isna(value) else f"${value:,.0f}"
     )
     metric["analysis_confidence_label"] = metric["analysis_confidence"].astype(str)
-    metric["market_pressure_bucket_label"] = metric["market_pressure_bucket"].astype(str)
+    metric["observed_context_label"] = metric["observed_context"].astype(str)
+    metric["rent_bucket_label"] = metric["rent_bucket"].astype(str)
     metric["supply_response_bucket_label"] = metric["supply_response_bucket"].astype(str)
     metric["positive_units_per_1000_label"] = metric["positive_units_per_1000_homes"].apply(
         lambda value: "No data" if pd.isna(value) else f"{value:,.1f}"
@@ -407,11 +427,11 @@ def prepare_map_frame(
     metric["median_gross_rent_label"] = metric["median_gross_rent"].apply(
         lambda value: "No data" if pd.isna(value) else f"${value:,.0f}"
     )
-    metric["market_pressure_percentile_label"] = metric["market_pressure_percentile"].apply(
-        lambda value: f"{value:,.0f}"
+    metric["rent_percentile_label"] = metric["rent_percentile"].apply(
+        lambda value: "No data" if pd.isna(value) else f"{value:,.0f}"
     )
     metric["supply_response_percentile_label"] = metric["supply_response_percentile"].apply(
-        lambda value: f"{value:,.0f}"
+        lambda value: "No data" if pd.isna(value) else f"{value:,.0f}"
     )
 
     metric["tooltip_html"] = metric.apply(
@@ -419,9 +439,9 @@ def prepare_map_frame(
             f"<b>{html.escape(str(row['tract_label']))}</b><br/>"
             f"<b>Neighborhood council:</b> {html.escape(str(row['neighborhood_council']))}<br/>"
             f"<b>Community plan:</b> {html.escape(str(row['community_plan_area']))}<br/>"
-            f"<b>Observed class:</b> {html.escape(str(row['observed_class']))}<br/>"
+            f"<b>Observed context:</b> {html.escape(str(row['observed_context_label']))}<br/>"
             f"<b>Confidence:</b> {html.escape(str(row['analysis_confidence_label']))}<br/>"
-            f"<b>Observed market pressure:</b> {html.escape(str(row['market_pressure_bucket_label']))}<br/>"
+            f"<b>Observed rent level:</b> {html.escape(str(row['rent_bucket_label']))}<br/>"
             f"<b>Recent supply response:</b> {html.escape(str(row['supply_response_bucket_label']))}<br/>"
             f"<b>Positive units (reconciled):</b> {row['positive_units_label']}<br/>"
             f"<b>Net units (reconciled):</b> {row['net_units_label']}<br/>"
@@ -438,7 +458,7 @@ def prepare_map_frame(
             f"<b>Vacancy rate:</b> {row['vacancy_rate_label']}<br/>"
             f"<b>Rent burdened renter HHs:</b> {row['rent_burden_share_label']}<br/>"
             f"<b>Median gross rent:</b> {row['median_gross_rent_label']}<br/>"
-            f"<b>Market pressure pctile:</b> {row['market_pressure_percentile_label']}<br/>"
+            f"<b>Rent level pctile:</b> {row['rent_percentile_label']}<br/>"
             f"<b>Supply response pctile:</b> {row['supply_response_percentile_label']}"
         ),
         axis=1,
@@ -458,14 +478,16 @@ def prepare_map_frame(
         "citywide_unassigned_positive_units": float(rollup.summary["unassigned_positive_units"]),
         "recovered_project_count": float(len(point_layers["recovered_projects"])),
         "unassigned_project_count": float(len(point_layers["unassigned_projects"])),
-        "high_pressure_low_response_tracts": float(
+        "high_rent_low_response_tracts": float(
             (
                 (metric["analysis_confidence"] == "Standard")
-                & (metric["market_pressure_bucket"] == "High")
+                & (metric["rent_bucket"] == "High")
                 & (metric["supply_response_bucket"] == "Low")
             ).sum()
         ),
         "lower_confidence_tracts": float((metric["analysis_confidence"] != "Standard").sum()),
+        "rent_low": rent_low,
+        "rent_high": rent_high,
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
     }
@@ -579,9 +601,11 @@ def build_overlay_html(stats: dict[str, float | str]) -> str:
     unassigned_units = format_int(float(stats["citywide_unassigned_positive_units"]))
     recovered_projects = format_int(float(stats["recovered_project_count"]))
     unassigned_projects = format_int(float(stats["unassigned_project_count"]))
-    high_pressure_low_response = format_int(float(stats["high_pressure_low_response_tracts"]))
+    high_rent_low_response = format_int(float(stats["high_rent_low_response_tracts"]))
     lower_confidence = format_int(float(stats["lower_confidence_tracts"]))
     supply_cap = f"{float(stats['supply_cap']):,.0f}"
+    rent_low = f"${float(stats['rent_low']):,.0f}"
+    rent_high = f"${float(stats['rent_high']):,.0f}"
 
     return f"""
 <style>
@@ -624,28 +648,18 @@ def build_overlay_html(stats: dict[str, float | str]) -> str:
   font-size: 12px;
   color: #d6e0f5;
 }}
-.legend-grid {{
-  margin-top: 10px;
-  display: grid;
-  grid-template-columns: 76px repeat(3, 1fr);
-  gap: 6px;
-  align-items: center;
+.legend-bar {{
+  margin-top: 6px;
+  height: 14px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgb(92,115,171), rgb(109,160,178), rgb(185,184,149), rgb(218,173,98), rgb(204,122,84));
 }}
-.legend-grid .axis,
-.legend-grid .cell-label {{
-  font-size: 11px;
+.legend-scale {{
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
   color: #aab6d0;
-}}
-.legend-grid .axis {{
-  text-align: center;
-}}
-.legend-grid .axis-left {{
-  text-align: left;
-}}
-.legend-swatch {{
-  height: 26px;
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.08);
+  font-size: 11px;
 }}
 .legend-note {{
   margin-top: 10px;
@@ -654,35 +668,22 @@ def build_overlay_html(stats: dict[str, float | str]) -> str:
 }}
 </style>
 <div class="map-card map-title">
-  <h1>LA Supply-Demand Context v4</h1>
+  <h1>LA Observed Rents And Supply v5</h1>
   <p>{html.escape(start_label)} to {html.escape(end_label)} permits with 2023 ACS housing context</p>
-  <p style="margin-top: 10px;">Height shows <b>reconciled positive units per 1,000 homes</b>. Color places each tract into a <b>relative 3x3 class</b> using observed market pressure and recent supply response. This is descriptive context, not a direct estimate of shortage.</p>
-  <p style="margin-top: 10px;"><b>Positive units:</b> {html.escape(positive_units)}<br/><b>Net units:</b> {html.escape(net_units)}<br/><b>Housing projects:</b> {html.escape(housing_projects)}<br/><b>Raw unit-bearing permit rows:</b> {html.escape(raw_unit_rows)}<br/><b>Other permits:</b> {html.escape(other_permits)}<br/><b>All permit rows:</b> {html.escape(all_permits)}<br/><b>Recovered projects:</b> {html.escape(recovered_projects)}<br/><b>Spatially reassigned units:</b> {html.escape(spatial_units)}<br/><b>Duplicate units removed:</b> {html.escape(duplicate_units_removed)}<br/><b>Unassigned projects:</b> {html.escape(unassigned_projects)}<br/><b>Still unassigned units:</b> {html.escape(unassigned_units)}<br/><b>High-pressure / limited-response tracts:</b> {html.escape(high_pressure_low_response)}<br/><b>Lower-confidence tracts:</b> {html.escape(lower_confidence)}</p>
+  <p style="margin-top: 10px;">Height shows <b>reconciled positive units per 1,000 homes</b>. Color shows <b>observed median gross rent</b>. This is a direct rent read, with vacancy and rent burden left in the tooltip as supporting context rather than blended into the color.</p>
+  <p style="margin-top: 10px;"><b>Positive units:</b> {html.escape(positive_units)}<br/><b>Net units:</b> {html.escape(net_units)}<br/><b>Housing projects:</b> {html.escape(housing_projects)}<br/><b>Raw unit-bearing permit rows:</b> {html.escape(raw_unit_rows)}<br/><b>Other permits:</b> {html.escape(other_permits)}<br/><b>All permit rows:</b> {html.escape(all_permits)}<br/><b>Recovered projects:</b> {html.escape(recovered_projects)}<br/><b>Spatially reassigned units:</b> {html.escape(spatial_units)}<br/><b>Duplicate units removed:</b> {html.escape(duplicate_units_removed)}<br/><b>Unassigned projects:</b> {html.escape(unassigned_projects)}<br/><b>Still unassigned units:</b> {html.escape(unassigned_units)}<br/><b>High-rent / limited-supply tracts:</b> {html.escape(high_rent_low_response)}<br/><b>Lower-confidence tracts:</b> {html.escape(lower_confidence)}</p>
 </div>
 <div class="map-card map-legend">
   <div class="legend-row"><b>Extrusion</b>: capped near {html.escape(supply_cap)} positive units per 1,000 homes</div>
-  <div class="legend-row"><b>Color</b>: relative percentile class within LA city tracts</div>
+  <div class="legend-row"><b>Color</b>: observed median gross rent</div>
   <div class="legend-row"><span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:#eba923;border:1px solid #7a4e08;margin-right:6px;"></span>Recovered projects reassigned by lat/lon</div>
   <div class="legend-row"><span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:#c44040;border:1px solid #621218;margin-right:6px;"></span>Still-unassigned positive-unit projects</div>
-  <div class="legend-grid">
-    <div></div>
-    <div class="axis">Limited response</div>
-    <div class="axis">Moderate response</div>
-    <div class="axis">Active response</div>
-    <div class="axis-left">High pressure</div>
-    <div class="legend-swatch" style="background: rgba(204,122,84,0.95);"></div>
-    <div class="legend-swatch" style="background: rgba(215,171,92,0.95);"></div>
-    <div class="legend-swatch" style="background: rgba(196,197,145,0.95);"></div>
-    <div class="axis-left">Moderate pressure</div>
-    <div class="legend-swatch" style="background: rgba(173,148,118,0.95);"></div>
-    <div class="legend-swatch" style="background: rgba(157,161,155,0.95);"></div>
-    <div class="legend-swatch" style="background: rgba(132,181,174,0.95);"></div>
-    <div class="axis-left">Lower pressure</div>
-    <div class="legend-swatch" style="background: rgba(188,177,166,0.95);"></div>
-    <div class="legend-swatch" style="background: rgba(164,193,187,0.95);"></div>
-    <div class="legend-swatch" style="background: rgba(95,169,171,0.95);"></div>
+  <div class="legend-bar"></div>
+  <div class="legend-scale">
+    <span>{html.escape(rent_low)}</span>
+    <span>{html.escape(rent_high)}</span>
   </div>
-  <div class="legend-note">Gray tracts have lower confidence because ACS inputs are thin or incomplete. Pressure uses rent burden, gross rent, and vacancy tightness. Response uses recent reconciled positive units per 1,000 homes.</div>
+  <div class="legend-note">Gray tracts have lower confidence because median rent is missing or the tract has a thin renter base. Vacancy and rent burden remain in the tooltip for context.</div>
 </div>
 """
 
