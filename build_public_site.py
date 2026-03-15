@@ -40,7 +40,8 @@ def build_index_html(permits_stats: dict[str, float | str], balance_stats: dict[
     unassigned_units = format_int(float(permits_stats["citywide_unassigned_positive_units"]))
     recovered_projects = format_int(float(permits_stats["recovered_project_count"]))
     unassigned_projects = format_int(float(permits_stats["unassigned_project_count"]))
-    high_imbalance = format_int(float(balance_stats["high_imbalance_tracts"]))
+    high_pressure_low_response = format_int(float(balance_stats["high_pressure_low_response_tracts"]))
+    lower_confidence = format_int(float(balance_stats["lower_confidence_tracts"]))
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -57,7 +58,7 @@ def build_index_html(permits_stats: dict[str, float | str], balance_stats: dict[
       <div class="header-inner">
         <p class="eyebrow">LOS ANGELES HOUSING PERMITS | PUBLIC SITE</p>
         <h1>Housing supply appears low because the permit dataset needs tract repair and family-level cleanup, not because a large block of units is missing.</h1>
-        <p class="lede">This site reconciles LADBS permit rows issued between {start_label} and {end_label} into a tract-level housing supply view, then pairs that supply signal with ACS market context. Address-level and permit-number details are intentionally excluded from the published pages.</p>
+        <p class="lede">This site reconciles LADBS permit rows issued between {start_label} and {end_label} into a tract-level housing supply view, then pairs that supply signal with ACS market context. The second map is intentionally framed as descriptive pressure-response context rather than a definitive shortage score. Address-level and permit-number details are intentionally excluded from the published pages.</p>
       </div>
     </header>
 
@@ -93,16 +94,16 @@ def build_index_html(permits_stats: dict[str, float | str], balance_stats: dict[
             <p>The reconciliation removed {duplicate_units_removed} duplicate positive units from supplemental permit families and recovered {spatial_units} units that were being dropped because LADBS tract codes did not line up with the current Census tract layer.</p>
           </article>
           <article class="note-card">
-            <h2>The supply map and imbalance map now use the same repaired project rollup.</h2>
-            <p>That makes the two views consistent: the supply map shows where units were permitted, while the balance map places that reconciled supply against rent burden, rent level, and vacancy pressure.</p>
+            <h2>The supply map and context map now use the same repaired project rollup.</h2>
+            <p>That keeps the two views consistent: the supply map shows where units were permitted, while the context map places that reconciled supply beside rent burden, rent level, and vacancy pressure.</p>
           </article>
           <article class="note-card">
             <h2>Privacy-safe publishing required stripping address-level detail.</h2>
             <p>The public site excludes raw addresses, parcel references, and permit numbers. Recovered and unassigned projects are shown with anonymized IDs only.</p>
           </article>
           <article class="note-card">
-            <h2>High-imbalance tracts still outnumber obvious supply-led tracts.</h2>
-            <p>{high_imbalance} tracts currently rank as high-imbalance areas in the supply-demand view, even after the tract repair and deduping pass.</p>
+            <h2>Pressure-response colors are relative and confidence-rated.</h2>
+            <p>{high_pressure_low_response} tracts currently fall in the high-pressure / limited-response class, while {lower_confidence} tracts are muted because their ACS inputs are thin or incomplete.</p>
           </article>
         </div>
       </section>
@@ -121,15 +122,15 @@ def build_index_html(permits_stats: dict[str, float | str], balance_stats: dict[
       </section>
 
       <section class="map-section">
-        <div class="section-band">MAP 2 | SUPPLY VS DEMAND</div>
+        <div class="section-band">MAP 2 | PRESSURE-RESPONSE CONTEXT</div>
         <div class="map-shell">
           <div class="map-copy">
-            <h2>Supply-demand balance after permit reconciliation</h2>
-            <p>Height shows reconciled positive units per 1,000 homes. Color reads local shortage pressure relative to the observed supply response.</p>
-            <p class="micro-note">Inputs combine reconciled LADBS permits with 2023 ACS housing units, vacancy, rent burden, and gross rent.</p>
+            <h2>Observed market pressure and recent supply response</h2>
+            <p>Height shows reconciled positive units per 1,000 homes. Color places tracts in a 3x3 relative class from observed market pressure and recent supply response, with gray reserved for lower-confidence reads.</p>
+            <p class="micro-note">Inputs combine reconciled LADBS permits with 2023 ACS housing units, vacancy, rent burden, and gross rent. These colors are descriptive percentile classes within Los Angeles city tracts, not modeled shortage estimates.</p>
             <a class="map-link" href="maps/la_supply_demand_balance_los_angeles.html" target="_blank" rel="noreferrer">Open full map</a>
           </div>
-          <iframe title="Los Angeles supply-demand balance map" src="maps/la_supply_demand_balance_los_angeles.html" loading="lazy"></iframe>
+          <iframe title="Los Angeles supply-demand context map" src="maps/la_supply_demand_balance_los_angeles.html" loading="lazy"></iframe>
         </div>
       </section>
 
@@ -441,7 +442,8 @@ def main() -> None:
         "duplicate_positive_units_removed": int(round(float(permits_stats["citywide_duplicate_positive_units_removed"]))),
         "spatial_fallback_positive_units": int(round(float(permits_stats["citywide_spatial_fallback_positive_units"]))),
         "unassigned_positive_units": int(round(float(permits_stats["citywide_unassigned_positive_units"]))),
-        "high_imbalance_tracts": int(round(float(balance_stats["high_imbalance_tracts"]))),
+        "high_pressure_low_response_tracts": int(round(float(balance_stats["high_pressure_low_response_tracts"]))),
+        "lower_confidence_tracts": int(round(float(balance_stats["lower_confidence_tracts"]))),
     }
     write_text(DOCS_DIR / "data" / "summary.json", __import__("json").dumps(summary_json, indent=2))
 

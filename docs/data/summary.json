@@ -7,5 +7,6 @@
   "duplicate_positive_units_removed": 146,
   "spatial_fallback_positive_units": 691,
   "unassigned_positive_units": 28,
-  "high_imbalance_tracts": 279
+  "high_pressure_low_response_tracts": 43,
+  "lower_confidence_tracts": 91
 }

@@ -11,7 +11,7 @@ Public-facing Los Angeles housing permit maps with a reconciliation pass for sta
 - `la_permits_units_map.py`
   - Reconciled permitted-units tract map.
 - `la_supply_demand_balance_map.py`
-  - Reconciled supply-demand balance tract map.
+  - Reconciled supply-demand context tract map with relative pressure-response classes.
 - `build_public_site.py`
   - Rebuilds the published `docs/` site.
 - `la_permit_reconciliation_audit.py`
@@ -38,4 +38,3 @@ python build_public_site.py
 - LADBS permits dataset: `pi9x-tg5x`
 - ACS 2023 5-year tract data
 - Census TIGER 2023 tract and place geometries
-
