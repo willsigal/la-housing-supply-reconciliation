@@ -262,7 +262,6 @@ def prepare_map_frame(
         "citywide_all_permits": float(metric["all_permits"].sum()),
         "citywide_duplicate_positive_units_removed": float(metric["duplicate_positive_units_removed"].sum()),
         "citywide_spatial_fallback_positive_units": float(metric["spatial_fallback_positive_units"].sum()),
-        "recovered_project_count": float(len(point_layers["recovered_projects"])),
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
     }
@@ -300,27 +299,6 @@ def build_deck(gdf: gpd.GeoDataFrame, point_layers: dict[str, pd.DataFrame]) -> 
 
     layers: list[pdk.Layer] = [tract_layer]
 
-    recovered_points = point_layers["recovered_projects"]
-    if not recovered_points.empty:
-        layers.append(
-            pdk.Layer(
-                "ScatterplotLayer",
-                recovered_points,
-                pickable=True,
-                opacity=0.9,
-                stroked=True,
-                filled=True,
-                get_position="[lon, lat]",
-                get_radius="radius_m",
-                radius_units="meters",
-                radius_min_pixels=4,
-                radius_max_pixels=28,
-                get_fill_color=[235, 169, 52, 150],
-                get_line_color=[122, 78, 8, 230],
-                line_width_min_pixels=1.2,
-            )
-        )
-
     tooltip = {
         "html": "{tooltip_html}",
         "style": {
@@ -352,7 +330,6 @@ def build_overlay_html(stats: dict[str, float | str]) -> str:
     all_permits = format_int(float(stats["citywide_all_permits"]))
     duplicate_units_removed = format_int(float(stats["citywide_duplicate_positive_units_removed"]))
     spatial_units = format_int(float(stats["citywide_spatial_fallback_positive_units"]))
-    recovered_projects = format_int(float(stats["recovered_project_count"]))
     display_cap = format_int(float(stats["display_cap"]))
 
     return f"""
@@ -414,12 +391,11 @@ def build_overlay_html(stats: dict[str, float | str]) -> str:
   <h1>Los Angeles Permitted Housing Units</h1>
   <p>{html.escape(start_label)} to {html.escape(end_label)}</p>
   <p style="margin-top: 10px;">Height and color encode reconciled positive units by tract. Permit families are deduped and stale tract codes fall back to spatial assignment.</p>
-  <p style="margin-top: 10px;"><b>Positive units:</b> {html.escape(positive_units)}<br/><b>Net units:</b> {html.escape(net_units)}<br/><b>Housing projects:</b> {html.escape(housing_projects)}<br/><b>Raw unit-bearing permit rows:</b> {html.escape(raw_unit_rows)}<br/><b>Other permits:</b> {html.escape(other_permits)}<br/><b>All permit rows:</b> {html.escape(all_permits)}<br/><b>Recovered projects:</b> {html.escape(recovered_projects)}<br/><b>Spatially reassigned units:</b> {html.escape(spatial_units)}<br/><b>Duplicate units removed:</b> {html.escape(duplicate_units_removed)}</p>
+  <p style="margin-top: 10px;"><b>Positive units:</b> {html.escape(positive_units)}<br/><b>Net units:</b> {html.escape(net_units)}<br/><b>Housing projects:</b> {html.escape(housing_projects)}<br/><b>Raw unit-bearing permit rows:</b> {html.escape(raw_unit_rows)}<br/><b>Other permits:</b> {html.escape(other_permits)}<br/><b>All permit rows:</b> {html.escape(all_permits)}<br/><b>Spatially reassigned units:</b> {html.escape(spatial_units)}<br/><b>Duplicate units removed:</b> {html.escape(duplicate_units_removed)}</p>
 </div>
 <div class="map-card map-legend">
   <div class="legend-row"><b>Extrusion</b>: capped near {html.escape(display_cap)} units per tract for readability</div>
   <div class="legend-row"><b>Color</b>: low to high reconciled positive units</div>
-  <div class="legend-row"><span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:#eba923;border:1px solid #7a4e08;margin-right:6px;"></span>Recovered projects reassigned by lat/lon</div>
   <div class="legend-bar"></div>
   <div class="legend-scale">
     <span>0</span>
