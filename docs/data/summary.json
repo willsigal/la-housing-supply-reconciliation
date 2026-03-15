@@ -1,0 +1,11 @@
+{
+  "start_date": "2025-03-14",
+  "end_date": "2026-03-14",
+  "positive_units": 23278,
+  "housing_projects": 8879,
+  "raw_unit_bearing_permit_rows": 9007,
+  "duplicate_positive_units_removed": 146,
+  "spatial_fallback_positive_units": 691,
+  "unassigned_positive_units": 28,
+  "high_imbalance_tracts": 279
+}

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Los Angeles Housing Supply Reconciliation</title>
+  <meta name="description" content="Public-facing Los Angeles housing permit maps with tract reconciliation and privacy-safe project markers." />
+  <link rel="stylesheet" href="assets/site.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="header-band">
+      <div class="header-inner">
+        <p class="eyebrow">LOS ANGELES HOUSING PERMITS | PUBLIC SITE</p>
+        <h1>Housing supply appears low because the permit dataset needs tract repair and family-level cleanup, not because a large block of units is missing.</h1>
+        <p class="lede">This site reconciles LADBS permit rows issued between Mar 14, 2025 and Mar 14, 2026 into a tract-level housing supply view, then pairs that supply signal with ACS market context. Address-level and permit-number details are intentionally excluded from the published pages.</p>
+      </div>
+    </header>
+
+    <main class="content-grid">
+      <section class="takeaway-strip">
+        <article class="metric-card">
+          <span class="metric-label">Reconciled Positive Units</span>
+          <strong class="metric-value">23,278</strong>
+          <p>Positive unit additions after tract repair and family-level deduping.</p>
+        </article>
+        <article class="metric-card">
+          <span class="metric-label">Housing Projects</span>
+          <strong class="metric-value">8,879</strong>
+          <p>Deduped housing project families represented in the permit rollup.</p>
+        </article>
+        <article class="metric-card accent-card">
+          <span class="metric-label">Recovered Units</span>
+          <strong class="metric-value">691</strong>
+          <p>50 anonymized projects reassigned by geospatial fallback because the published tract code did not match the current tract layer.</p>
+        </article>
+        <article class="metric-card danger-card">
+          <span class="metric-label">Still Unassigned</span>
+          <strong class="metric-value">28</strong>
+          <p>25 anonymized projects still fall outside the current city tract layer and are marked separately on the maps.</p>
+        </article>
+      </section>
+
+      <section class="narrative-panel">
+        <div class="section-band">KEY READS</div>
+        <div class="narrative-grid">
+          <article class="note-card">
+            <h2>The raw permit file is close on scale, but it is not presentation-ready.</h2>
+            <p>The reconciliation removed 146 duplicate positive units from supplemental permit families and recovered 691 units that were being dropped because LADBS tract codes did not line up with the current Census tract layer.</p>
+          </article>
+          <article class="note-card">
+            <h2>The supply map and imbalance map now use the same repaired project rollup.</h2>
+            <p>That makes the two views consistent: the supply map shows where units were permitted, while the balance map places that reconciled supply against rent burden, rent level, and vacancy pressure.</p>
+          </article>
+          <article class="note-card">
+            <h2>Privacy-safe publishing required stripping address-level detail.</h2>
+            <p>The public site excludes raw addresses, parcel references, and permit numbers. Recovered and unassigned projects are shown with anonymized IDs only.</p>
+          </article>
+          <article class="note-card">
+            <h2>High-imbalance tracts still outnumber obvious supply-led tracts.</h2>
+            <p>279 tracts currently rank as high-imbalance areas in the supply-demand view, even after the tract repair and deduping pass.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="map-section">
+        <div class="section-band">MAP 1 | RECONCILED SUPPLY</div>
+        <div class="map-shell">
+          <div class="map-copy">
+            <h2>Reconciled permitted housing units by tract</h2>
+            <p>Yellow markers show anonymized recovered projects reassigned by geospatial fallback. Red markers show the few positive-unit projects still outside the current tract layer.</p>
+            <p class="micro-note">The raw unit-bearing permit row count is 9,007, but the public map treats those as underlying records, not final project counts.</p>
+            <a class="map-link" href="maps/la_permits_units_los_angeles.html" target="_blank" rel="noreferrer">Open full map</a>
+          </div>
+          <iframe title="Los Angeles reconciled permitted units map" src="maps/la_permits_units_los_angeles.html" loading="lazy"></iframe>
+        </div>
+      </section>
+
+      <section class="map-section">
+        <div class="section-band">MAP 2 | SUPPLY VS DEMAND</div>
+        <div class="map-shell">
+          <div class="map-copy">
+            <h2>Supply-demand balance after permit reconciliation</h2>
+            <p>Height shows reconciled positive units per 1,000 homes. Color reads local shortage pressure relative to the observed supply response.</p>
+            <p class="micro-note">Inputs combine reconciled LADBS permits with 2023 ACS housing units, vacancy, rent burden, and gross rent.</p>
+            <a class="map-link" href="maps/la_supply_demand_balance_los_angeles.html" target="_blank" rel="noreferrer">Open full map</a>
+          </div>
+          <iframe title="Los Angeles supply-demand balance map" src="maps/la_supply_demand_balance_los_angeles.html" loading="lazy"></iframe>
+        </div>
+      </section>
+
+      <section class="method-panel">
+        <div class="section-band">METHOD</div>
+        <div class="method-grid">
+          <div>
+            <h3>Reconciliation steps</h3>
+            <ol>
+              <li>Pull live LADBS permit rows for the selected period.</li>
+              <li>Compute structured unit changes from dwelling-unit fields rather than text descriptions.</li>
+              <li>Repair stale tract codes using geospatial point-in-polygon fallback.</li>
+              <li>Deduplicate supplemental permit families into project-level rows.</li>
+              <li>Aggregate reconciled projects to Census tracts for mapping.</li>
+            </ol>
+          </div>
+          <div>
+            <h3>Publishing note</h3>
+            <p>This public site omits address-level audit files. Private QA artifacts remain in the local project folder only and are not part of the Pages build.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

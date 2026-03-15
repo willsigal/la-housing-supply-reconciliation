@@ -1,0 +1,251 @@
+:root {
+  --bg: #f1f1f1;
+  --text: #4c4c4c;
+  --band: #767662;
+  --band-dark: #59594a;
+  --stone: #a6a08d;
+  --teal: #2babb9;
+  --gold: #eba923;
+  --amber: #d77d28;
+  --purple: #633377;
+  --danger: #a14a44;
+  --card: #fbfbf8;
+  --line: rgba(118, 118, 98, 0.24);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Arial Narrow", Arial, Helvetica, sans-serif;
+}
+
+.page-shell {
+  min-height: 100vh;
+}
+
+.header-band {
+  background: var(--band);
+  color: white;
+  padding: 42px 0 36px;
+  border-bottom: 8px solid var(--band-dark);
+}
+
+.header-inner,
+.content-grid {
+  width: min(1240px, calc(100vw - 48px));
+  margin: 0 auto;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  opacity: 0.82;
+}
+
+.header-inner h1 {
+  margin: 0;
+  max-width: 1020px;
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 1.03;
+  letter-spacing: -0.02em;
+}
+
+.lede {
+  margin: 18px 0 0;
+  max-width: 900px;
+  font-size: 18px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.content-grid {
+  padding: 28px 0 42px;
+  display: grid;
+  gap: 22px;
+}
+
+.takeaway-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.metric-card,
+.note-card,
+.map-shell,
+.method-panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+
+.metric-card {
+  padding: 18px 18px 20px;
+}
+
+.metric-label {
+  display: block;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--band);
+}
+
+.metric-value {
+  display: block;
+  margin-top: 10px;
+  font-size: clamp(28px, 3vw, 42px);
+  line-height: 1;
+  color: var(--band-dark);
+}
+
+.metric-card p {
+  margin: 12px 0 0;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.accent-card .metric-value,
+.accent-card .metric-label { color: var(--amber); }
+
+.danger-card .metric-value,
+.danger-card .metric-label { color: var(--danger); }
+
+.section-band {
+  background: var(--band);
+  color: white;
+  padding: 10px 14px;
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.narrative-panel,
+.map-section,
+.method-panel {
+  border: 1px solid var(--line);
+  background: var(--card);
+}
+
+.narrative-grid,
+.method-grid {
+  padding: 18px;
+  display: grid;
+  gap: 16px;
+}
+
+.narrative-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.note-card {
+  padding: 18px;
+}
+
+.note-card h2,
+.map-copy h2,
+.method-grid h3 {
+  margin: 0 0 10px;
+  font-size: 24px;
+  color: var(--band-dark);
+}
+
+.note-card p,
+.map-copy p,
+.method-grid p,
+.method-grid li {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.map-shell {
+  padding: 18px;
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 18px;
+}
+
+.map-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.micro-note {
+  color: #737366;
+  font-size: 14px;
+}
+
+.map-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-width: 148px;
+  padding: 10px 14px;
+  background: var(--band-dark);
+  color: white;
+  text-decoration: none;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+iframe {
+  width: 100%;
+  min-height: 860px;
+  border: 1px solid rgba(118, 118, 98, 0.18);
+  background: white;
+}
+
+.method-grid {
+  grid-template-columns: 1.4fr 1fr;
+}
+
+ol {
+  margin: 0;
+  padding-left: 20px;
+}
+
+li + li {
+  margin-top: 8px;
+}
+
+@media (max-width: 1100px) {
+  .takeaway-strip,
+  .narrative-grid,
+  .method-grid,
+  .map-shell {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .map-shell iframe {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .header-inner,
+  .content-grid {
+    width: min(100vw - 28px, 1240px);
+  }
+
+  .takeaway-strip,
+  .narrative-grid,
+  .method-grid,
+  .map-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .header-band {
+    padding-top: 32px;
+  }
+
+  iframe {
+    min-height: 680px;
+  }
+}
